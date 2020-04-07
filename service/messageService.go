@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"github.com/FatimaBabayeva/ms-go-example/model"
+	"github.com/FatimaBabayeva/ms-go-example/repo"
 	log "github.com/sirupsen/logrus"
-	"ms-go-example/model"
-	"ms-go-example/repo"
 	"time"
 )
 

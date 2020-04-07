@@ -1,7 +1,7 @@
 package repo
 
 import (
-	"ms-go-example/model"
+	"github.com/FatimaBabayeva/ms-go-example/model"
 )
 
 // MessageRepo is an interface to operate with messages on Db level

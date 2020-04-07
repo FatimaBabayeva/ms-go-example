@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"context"
-	"ms-go-example/model"
+	"github.com/FatimaBabayeva/ms-go-example/model"
 	"net/http"
 
 	"github.com/google/uuid"

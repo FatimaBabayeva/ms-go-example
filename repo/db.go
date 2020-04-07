@@ -2,11 +2,11 @@ package repo
 
 import (
 	"database/sql"
+	"github.com/FatimaBabayeva/ms-go-example/properties"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 	log "github.com/sirupsen/logrus"
-	"ms-go-example/properties"
 	"strings"
 )
 

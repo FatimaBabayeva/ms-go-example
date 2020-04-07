@@ -1,4 +1,4 @@
-module ms-go-example
+module github.com/FatimaBabayeva/ms-go-example
 
 go 1.13
 

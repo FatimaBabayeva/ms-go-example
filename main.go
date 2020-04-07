@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/FatimaBabayeva/ms-go-example/handler"
+	"github.com/FatimaBabayeva/ms-go-example/properties"
+	"github.com/FatimaBabayeva/ms-go-example/repo"
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
-	"ms-go-example/handler"
-	"ms-go-example/properties"
-	"ms-go-example/repo"
 	"net/http"
 	"strconv"
 )
