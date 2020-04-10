@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/alexflint/go-arg v1.3.0
+	github.com/appleboy/gofight/v2 v2.1.2
 	github.com/go-chi/chi v4.0.4+incompatible
 	github.com/go-pg/pg v8.0.6+incompatible
 	github.com/google/uuid v1.1.1
@@ -14,6 +15,7 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/rubenv/sql-migrate v0.0.0-20200402132117-435005d389bc
 	github.com/sirupsen/logrus v1.5.0
+	github.com/stretchr/testify v1.4.0
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	mellium.im/sasl v0.2.1 // indirect
 )
