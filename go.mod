@@ -4,9 +4,9 @@ go 1.13
 
 require (
 	github.com/alexflint/go-arg v1.3.0
-	github.com/appleboy/gofight/v2 v2.1.2
 	github.com/go-chi/chi v4.0.4+incompatible
 	github.com/go-pg/pg v8.0.6+incompatible
+	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/jessevdk/go-flags v1.4.0
@@ -16,6 +16,8 @@ require (
 	github.com/rubenv/sql-migrate v0.0.0-20200402132117-435005d389bc
 	github.com/sirupsen/logrus v1.5.0
 	github.com/stretchr/testify v1.4.0
+	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d // indirect
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 )
