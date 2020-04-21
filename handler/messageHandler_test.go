@@ -2,10 +2,11 @@ package handler
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
+	"github.com/FatimaBabayeva/ms-go-example/ctmerror"
 	"github.com/FatimaBabayeva/ms-go-example/model"
 	"github.com/FatimaBabayeva/ms-go-example/properties"
+	"github.com/FatimaBabayeva/ms-go-example/service"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -16,43 +17,22 @@ import (
 	"testing"
 )
 
-type messageServiceMock struct {
-	mock.Mock
-}
-
-func (s *messageServiceMock) SaveMessage(ctx context.Context, message model.Message) (*model.Message, error) {
-	// args hold the arguments that should be returned when this method is called.
-	args := s.Called(ctx, message)
-	return checkArguments(args)
-}
-
-func (s *messageServiceMock) GetMessageById(ctx context.Context, id int64) (*model.Message, error) {
-	args := s.Called(ctx, id)
-	return checkArguments(args)
-}
-
-func (s *messageServiceMock) UpdateMessageById(ctx context.Context, id int64, message model.Message) (*model.Message, error) {
-	args := s.Called(ctx, id, message)
-	return checkArguments(args)
-}
-
-func (s *messageServiceMock) DeleteMessageById(ctx context.Context, id int64) error {
-	args := s.Called(ctx, id)
-	return args.Error(0)
-}
-
-func checkArguments(args mock.Arguments) (*model.Message, error) {
-	firstArg := args.Get(0)
-	if firstArg != nil {
-		return firstArg.(*model.Message), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
 var (
-	mockService       = messageServiceMock{}
-	handler           = messageHandler{&mockService}
-	id          int64 = 1
+	mockService   = service.MessageServiceMock{}
+	handler       = messageHandler{&mockService}
+	unexpectedErr = ctmerror.NewMessageErrorBuilder("error.go-example.unexpected-error", assert.AnError, 500)
+	notFoundErr   = ctmerror.NewMessageErrorBuilder("error.go-example.message-not-found", pg.ErrNoRows, 404)
+
+	id int64 = 1
+
+	errorTable = []struct {
+		msgError  *ctmerror.MessageError
+		errorCode string
+		httpCode  int
+	}{
+		{unexpectedErr, unexpectedErr.Error(), unexpectedErr.HttpCode()},
+		{notFoundErr, notFoundErr.Error(), notFoundErr.HttpCode()},
+	}
 )
 
 func TestSaveMessage_Ok(t *testing.T) {
@@ -207,7 +187,7 @@ func TestSaveMessage_InvalidBody(t *testing.T) {
 func TestSaveMessage_ServiceError(t *testing.T) {
 	// given:
 	message := model.Message{Text: "MOCK_TEXT"}
-	mockService.On("SaveMessage", mock.Anything, message).Once().Return(nil, assert.AnError)
+	mockService.On("SaveMessage", mock.Anything, message).Once().Return(nil, unexpectedErr)
 
 	requestJson, _ := json.Marshal(message)
 	req, err := http.NewRequest("POST", properties.RootPath+"/message", bytes.NewBuffer(requestJson))
@@ -221,7 +201,7 @@ func TestSaveMessage_ServiceError(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// then:
-	assert.Equal(t, "go-example.saveMessage.exception", strings.TrimSpace(w.Body.String()))
+	assert.Equal(t, "error.go-example.unexpected-error", strings.TrimSpace(w.Body.String()))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	mockService.AssertExpectations(t)
 }
@@ -281,56 +261,32 @@ func TestEditMessage_InvalidBody(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestEditMessage_MessageNotFound(t *testing.T) {
-	// given:
-	message := model.Message{Text: "UPDATED_TEXT"}
-	mockService.On("UpdateMessageById", mock.Anything, id, message).Once().Return(nil, pg.ErrNoRows)
-
-	requestJson, _ := json.Marshal(message)
-	req, err := http.NewRequest("PUT", properties.RootPath+"/message/{id}", bytes.NewBuffer(requestJson))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req = mux.SetURLVars(req, map[string]string{
-		"id": "1",
-	})
-
-	// when:
-	handler := http.HandlerFunc(handler.editMessage)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	// then:
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	assert.Equal(t, "go-example.editMessage.message-not-found", strings.TrimSpace(w.Body.String()))
-	mockService.AssertExpectations(t)
-}
-
 func TestEditMessage_ServiceError(t *testing.T) {
-	// given:
-	message := model.Message{Text: "UPDATED_TEXT"}
-	mockService.On("UpdateMessageById", mock.Anything, id, message).Once().Return(nil, assert.AnError)
+	for _, errCase := range errorTable {
+		// given:
+		message := model.Message{Text: "UPDATED_TEXT"}
+		mockService.On("UpdateMessageById", mock.Anything, id, message).Once().Return(nil, errCase.msgError)
 
-	requestJson, _ := json.Marshal(message)
-	req, err := http.NewRequest("PUT", properties.RootPath+"/message/{id}", bytes.NewBuffer(requestJson))
-	if err != nil {
-		t.Fatal(err)
+		requestJson, _ := json.Marshal(message)
+		req, err := http.NewRequest("PUT", properties.RootPath+"/message/{id}", bytes.NewBuffer(requestJson))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req = mux.SetURLVars(req, map[string]string{
+			"id": "1",
+		})
+
+		// when:
+		handler := http.HandlerFunc(handler.editMessage)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		// then:
+		assert.Equal(t, errCase.httpCode, w.Code)
+		assert.Equal(t, errCase.errorCode, strings.TrimSpace(w.Body.String()))
+		mockService.AssertExpectations(t)
 	}
-
-	req = mux.SetURLVars(req, map[string]string{
-		"id": "1",
-	})
-
-	// when:
-	handler := http.HandlerFunc(handler.editMessage)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	// then:
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Equal(t, "go-example.editMessage.exception", strings.TrimSpace(w.Body.String()))
-	mockService.AssertExpectations(t)
 }
 
 func TestDeleteMessage_NoParams(t *testing.T) {
@@ -349,50 +305,28 @@ func TestDeleteMessage_NoParams(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestDeleteMessage_MessageNotFound(t *testing.T) {
-	// given:
-	mockService.On("DeleteMessageById", mock.Anything, id).Once().Return(pg.ErrNoRows)
-
-	req, err := http.NewRequest("DELETE", properties.RootPath+"/message/{id}", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req = mux.SetURLVars(req, map[string]string{
-		"id": "1",
-	})
-
-	// when:
-	handler := http.HandlerFunc(handler.deleteMessage)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	// then:
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	assert.Equal(t, "go-example.deleteMessage.message-not-found", strings.TrimSpace(w.Body.String()))
-	mockService.AssertExpectations(t)
-}
-
 func TestDeleteMessage_ServiceError(t *testing.T) {
-	// given:
-	mockService.On("DeleteMessageById", mock.Anything, id).Once().Return(assert.AnError)
+	for _, errCase := range errorTable {
+		// given:
+		mockService.On("DeleteMessageById", mock.Anything, id).Once().Return(errCase.msgError)
 
-	req, err := http.NewRequest("DELETE", properties.RootPath+"/message/{id}", nil)
-	if err != nil {
-		t.Fatal(err)
+		req, err := http.NewRequest("DELETE", properties.RootPath+"/message/{id}", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		req = mux.SetURLVars(req, map[string]string{
+			"id": "1",
+		})
+
+		// when:
+		handler := http.HandlerFunc(handler.deleteMessage)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		// then:
+		assert.Equal(t, errCase.httpCode, w.Code)
+		assert.Equal(t, errCase.errorCode, strings.TrimSpace(w.Body.String()))
+		mockService.AssertExpectations(t)
 	}
-
-	req = mux.SetURLVars(req, map[string]string{
-		"id": "1",
-	})
-
-	// when:
-	handler := http.HandlerFunc(handler.deleteMessage)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	// then:
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Equal(t, "go-example.deleteMessage.exception", strings.TrimSpace(w.Body.String()))
-	mockService.AssertExpectations(t)
 }
