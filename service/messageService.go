@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"github.com/FatimaBabayeva/ms-go-example/ctmerror"
 	"github.com/FatimaBabayeva/ms-go-example/model"
 	"github.com/FatimaBabayeva/ms-go-example/repo"
 	log "github.com/sirupsen/logrus"
+	"runtime/debug"
 	"time"
 )
 
@@ -29,8 +31,8 @@ func (s *MessageServiceImpl) SaveMessage(ctx context.Context, message model.Mess
 	message.Status = model.CREATED
 	result, err := s.MsgRepo.Save(&message)
 	if err != nil {
-		logger.Errorf("ActionLog.SaveMessage.error : Error saving message %v", err)
-		return nil, err
+		logger.Errorf("ActionLog.SaveMessage.error : Error saving message %v,\n%s", err, string(debug.Stack()))
+		return nil, ctmerror.NewMessageError(err)
 	}
 
 	logger.Info("ActionLog.SaveMessage.end")
@@ -43,8 +45,8 @@ func (s *MessageServiceImpl) GetMessageById(ctx context.Context, id int64) (*mod
 
 	result, err := s.MsgRepo.Get(id)
 	if err != nil {
-		logger.Errorf("ActionLog.GetMessageById.error : Error getting message with id = %d, %v", id, err)
-		return nil, err
+		logger.Errorf("ActionLog.GetMessageById.error : Error getting message with id = %d, %v,\n%s", id, err, string(debug.Stack()))
+		return nil, ctmerror.NewMessageError(err)
 	}
 
 	logger.Info("ActionLog.GetMessageById.end")
@@ -57,8 +59,8 @@ func (s *MessageServiceImpl) UpdateMessageById(ctx context.Context, id int64, me
 
 	originalMsg, err := s.MsgRepo.Get(id)
 	if err != nil {
-		logger.Errorf("ActionLog.UpdateMessageById.error : Error getting message with id = %d, %v", id, err)
-		return nil, err
+		logger.Errorf("ActionLog.UpdateMessageById.error : Error getting message with id = %d, %v,\n%s", id, err, string(debug.Stack()))
+		return nil, ctmerror.NewMessageError(err)
 	}
 
 	if message.Text != "" {
@@ -68,8 +70,8 @@ func (s *MessageServiceImpl) UpdateMessageById(ctx context.Context, id int64, me
 
 	result, err := s.MsgRepo.Update(originalMsg)
 	if err != nil {
-		logger.Errorf("ActionLog.UpdateMessageById.error : Error updating message with id = %d, %v", id, err)
-		return nil, err
+		logger.Errorf("ActionLog.UpdateMessageById.error : Error updating message with id = %d, %v,\n%s", id, err, string(debug.Stack()))
+		return nil, ctmerror.NewMessageError(err)
 	}
 
 	logger.Info("ActionLog.UpdateMessageById.end")
@@ -82,16 +84,16 @@ func (s *MessageServiceImpl) DeleteMessageById(ctx context.Context, id int64) er
 
 	originalMsg, err := s.MsgRepo.Get(id)
 	if err != nil {
-		logger.Errorf("ActionLog.DeleteMessageById.error : Error getting message with id = %d, %v", id, err)
-		return err
+		logger.Errorf("ActionLog.DeleteMessageById.error : Error getting message with id = %d, %v,\n%s", id, err, string(debug.Stack()))
+		return ctmerror.NewMessageError(err)
 	}
 
 	originalMsg.UpdatedAt = time.Now()
 	originalMsg.Status = model.DELETED
 	_, err = s.MsgRepo.Update(originalMsg)
 	if err != nil {
-		logger.Errorf("ActionLog.DeleteMessageById.error : Error deleting message with id = %d, %v", id, err)
-		return err
+		logger.Errorf("ActionLog.DeleteMessageById.error : Error deleting message with id = %d, %v,\n%s", id, err, string(debug.Stack()))
+		return ctmerror.NewMessageError(err)
 	}
 
 	logger.Info("ActionLog.DeleteMessageById.end")

@@ -2,14 +2,13 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
+	"github.com/FatimaBabayeva/ms-go-example/ctmerror"
 	"github.com/FatimaBabayeva/ms-go-example/middleware"
 	"github.com/FatimaBabayeva/ms-go-example/model"
 	"github.com/FatimaBabayeva/ms-go-example/properties"
 	"github.com/FatimaBabayeva/ms-go-example/repo"
 	"github.com/FatimaBabayeva/ms-go-example/service"
 	mid "github.com/go-chi/chi/middleware"
-	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -47,7 +46,7 @@ func (h *messageHandler) saveMessage(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.SaveMessage(r.Context(), m)
 	if err != nil {
-		http.Error(w, "go-example.saveMessage.exception", http.StatusInternalServerError)
+		http.Error(w, err.Error(), err.(*ctmerror.MessageError).HttpCode())
 		return
 	}
 
@@ -66,11 +65,7 @@ func (h *messageHandler) getMessage(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.GetMessageById(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			http.Error(w, "go-example.getMessage.message-not-found", http.StatusNotFound)
-		} else {
-			http.Error(w, "go-example.getMessage.exception", http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), err.(*ctmerror.MessageError).HttpCode())
 		return
 	}
 
@@ -96,11 +91,7 @@ func (h *messageHandler) editMessage(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.UpdateMessageById(r.Context(), id, m)
 	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			http.Error(w, "go-example.editMessage.message-not-found", http.StatusNotFound)
-		} else {
-			http.Error(w, "go-example.editMessage.exception", http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), err.(*ctmerror.MessageError).HttpCode())
 		return
 	}
 
@@ -119,11 +110,7 @@ func (h *messageHandler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 
 	err = h.service.DeleteMessageById(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			http.Error(w, "go-example.deleteMessage.message-not-found", http.StatusNotFound)
-		} else {
-			http.Error(w, "go-example.deleteMessage.exception", http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), err.(*ctmerror.MessageError).HttpCode())
 		return
 	}
 

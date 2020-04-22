@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"github.com/FatimaBabayeva/ms-go-example/ctmerror"
 	"github.com/FatimaBabayeva/ms-go-example/model"
+	"github.com/FatimaBabayeva/ms-go-example/repo"
 	"github.com/go-pg/pg"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -10,44 +12,28 @@ import (
 	"testing"
 )
 
-type messageRepoMock struct {
-	mock.Mock
-}
+var (
+	mockRepo      = repo.MessageRepoMock{}
+	s             = MessageServiceImpl{MsgRepo: &mockRepo}
+	unexpectedErr = ctmerror.NewMessageErrorBuilder("error.go-example.unexpected-error", assert.AnError, 500)
+	notFoundErr   = ctmerror.NewMessageErrorBuilder("error.go-example.message-not-found", pg.ErrNoRows, 404)
 
-func (r *messageRepoMock) Save(m *model.Message) (*model.Message, error) {
-	args := r.Called(m)
-	return checkArguments(args)
-}
+	id int64 = 1
 
-func (r *messageRepoMock) Update(m *model.Message) (*model.Message, error) {
-	args := r.Called(m)
-	return checkArguments(args)
-}
-
-func (r *messageRepoMock) Get(id int64) (*model.Message, error) {
-	args := r.Called(id)
-	return checkArguments(args)
-}
-
-func checkArguments(args mock.Arguments) (*model.Message, error) {
-	firstArg := args.Get(0)
-	if firstArg != nil {
-		return firstArg.(*model.Message), args.Error(1)
+	errorTable = []struct {
+		repoError error
+		msgError  *ctmerror.MessageError
+	}{
+		{assert.AnError, unexpectedErr},
+		{pg.ErrNoRows, notFoundErr},
 	}
-	return nil, args.Error(1)
-}
+)
 
 func mockContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, model.ContextLogger, log.WithContext(ctx))
 	return ctx
 }
-
-var (
-	mockRepo        = messageRepoMock{}
-	s               = MessageServiceImpl{MsgRepo: &mockRepo}
-	id        int64 = 1
-)
 
 func TestMessageServiceImpl_SaveMessage_Ok(t *testing.T) {
 	// given:
@@ -143,7 +129,7 @@ func TestMessageServiceImpl_DeleteMessageById_Ok(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
-func TestMessageServiceImpl_SaveMessage_AnyError(t *testing.T) {
+func TestMessageServiceImpl_SaveMessage_Error(t *testing.T) {
 	// given:
 	message := model.Message{}
 	mockRepo.On("Save", mock.Anything).Once().Return(nil, assert.AnError)
@@ -153,21 +139,25 @@ func TestMessageServiceImpl_SaveMessage_AnyError(t *testing.T) {
 
 	// then:
 	assert.NotNil(t, err)
+	assert.Equal(t, err, unexpectedErr)
 	assert.Nil(t, result)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestMessageServiceImpl_GetMessageById_AnyError(t *testing.T) {
-	// given:
-	mockRepo.On("Get", id).Once().Return(nil, assert.AnError)
+func TestMessageServiceImpl_GetMessageById_Error(t *testing.T) {
+	for _, errCase := range errorTable {
+		// given:
+		mockRepo.On("Get", id).Once().Return(nil, errCase.repoError)
 
-	// when:
-	result, err := s.GetMessageById(mockContext(), id)
+		// when:
+		result, err := s.GetMessageById(mockContext(), id)
 
-	// then:
-	assert.Nil(t, result)
-	assert.NotNil(t, err)
-	mockRepo.AssertExpectations(t)
+		// then:
+		assert.Nil(t, result)
+		assert.NotNil(t, err)
+		assert.Equal(t, err, errCase.msgError)
+		mockRepo.AssertExpectations(t)
+	}
 }
 
 func TestMessageServiceImpl_UpdateMessageById_MessageNotFound(t *testing.T) {
@@ -181,7 +171,7 @@ func TestMessageServiceImpl_UpdateMessageById_MessageNotFound(t *testing.T) {
 	// then:
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
-	assert.Equal(t, err, pg.ErrNoRows)
+	assert.Equal(t, err, notFoundErr)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -203,6 +193,7 @@ func TestMessageServiceImpl_UpdateMessageById_AnyError(t *testing.T) {
 	// then:
 	assert.Nil(t, result)
 	assert.NotNil(t, err)
+	assert.Equal(t, err, unexpectedErr)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -215,7 +206,7 @@ func TestMessageServiceImpl_DeleteMessageById_MessageNotFound(t *testing.T) {
 
 	// then:
 	assert.NotNil(t, err)
-	assert.Equal(t, err, pg.ErrNoRows)
+	assert.Equal(t, err, notFoundErr)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -234,5 +225,6 @@ func TestMessageServiceImpl_DeleteMessageById_AnyError(t *testing.T) {
 
 	// then:
 	assert.NotNil(t, err)
+	assert.Equal(t, err, unexpectedErr)
 	mockRepo.AssertExpectations(t)
 }
